@@ -1,1 +1,35 @@
-import express from 'express';import cors from 'cors';import dotenv from 'dotenv';import jwt from 'jsonwebtoken';import bcrypt from 'bcryptjs';import multer from 'multer';import { PrismaClient } from '@prisma/client';import Stripe from 'stripe';dotenv.config();const app=express();const prisma=new PrismaClient();const stripe=process.env.STRIPE_SECRET_KEY?new Stripe(process.env.STRIPE_SECRET_KEY):null;const PORT=process.env.PORT||4000;const JWT_SECRET=process.env.JWT_SECRET||'dev_secret';const CORS_ORIGIN=(process.env.CORS_ORIGIN||'*').split(',');app.use(cors({origin:CORS_ORIGIN,credentials:true}));app.use(express.json());const upload=multer({dest:'uploads/'});const sign=u=>jwt.sign({id:u.id,email:u.email,role:u.role},JWT_SECRET,{expiresIn:'7d'});const auth=(req,res,next)=>{const h=req.headers.authorization;if(!h) return res.status(401).json({error:'Missing token'});try{req.user=jwt.verify(h.split(' ')[1],JWT_SECRET);next();}catch{res.status(401).json({error:'Invalid token'})}};app.get('/api/health',(_req,res)=>res.json({ok:true}));app.post('/api/auth/register',async(req,res)=>{const {email,password}=req.body;const hashed=await bcrypt.hash(password,10);const user=await prisma.user.create({data:{email,password:hashed}});res.json({token:sign(user)})});app.post('/api/auth/login',async(req,res)=>{const {email,password}=req.body;const user=await prisma.user.findUnique({where:{email}});if(!user)return res.status(401).json({error:'Invalid'});const ok=await bcrypt.compare(password,user.password);if(!ok)return res.status(401).json({error:'Invalid'});res.json({token:sign(user)})});app.get('/api/companies',auth,async(_req,res)=>{res.json(await prisma.company.findMany({orderBy:{createdAt:'desc'}}))});app.post('/api/companies',auth,async(req,res)=>{const {name,type='broker',country=''}=req.body;res.json(await prisma.company.create({data:{name,type,country}}))});app.post('/api/kyc/submit',auth,async(req,res)=>{const {companyId,vendorRef=''}=req.body;res.json(await prisma.verification.create({data:{companyId:Number(companyId),vendorRef,status:'submitted'}}))});app.get('/api/kyc/status',auth,async(req,res)=>{const {companyId}=req.query;const v=await prisma.verification.findFirst({where:{companyId:Number(companyId)},orderBy:{createdAt:'desc'}});res.json(v||{status:'none'})});app.get('/api/dealrooms',auth,async(_req,res)=>{res.json(await prisma.dealRoom.findMany({orderBy:{createdAt:'desc'}}))});app.post('/api/dealrooms',auth,async(req,res)=>{const {title,buyerCompanyId,sellerCompanyId}=req.body;const room=await prisma.dealRoom.create({data:{title,buyerCompanyId:Number(buyerCompanyId),sellerCompanyId:Number(sellerCompanyId)}});res.json(room)});app.get('/api/dealrooms/:id/messages',auth,async(req,res)=>{res.json(await prisma.message.findMany({where:{dealRoomId:Number(req.params.id)},orderBy:{createdAt:'asc'}}))});app.post('/api/dealrooms/:id/messages',auth,async(req,res)=>{const msg=await prisma.message.create({data:{dealRoomId:Number(req.params.id),authorUserId:req.user.id,body:req.body.body||''}});res.json(msg)});app.get('/api/dealrooms/:id/docs',auth,async(req,res)=>{res.json(await prisma.doc.findMany({where:{dealRoomId:Number(req.params.id)},orderBy:{createdAt:'asc'}}))});app.post('/api/dealrooms/:id/docs',auth,upload.single('file'),async(req,res)=>{const d=await prisma.doc.create({data:{dealRoomId:Number(req.params.id),uploaderUserId:req.user.id,filename:req.file?.originalname||'upload'}});res.json(d)});app.post('/api/stripe/create-checkout-session',async(req,res)=>{try{if(!stripe)return res.status(400).json({error:'Stripe not configured'});const {plan}=req.body;const m={basic:process.env.STRIPE_PRICE_BASIC,premium:process.env.STRIPE_PRICE_PREMIUM,enterprise:process.env.STRIPE_PRICE_ENTERPRISE};const price=m[plan];if(!price)return res.status(400).json({error:'Invalid plan'});const s=await stripe.checkout.sessions.create({mode:'subscription',line_items:[{price,quantity:1}],success_url:process.env.STRIPE_SUCCESS_URL,cancel_url:process.env.STRIPE_CANCEL_URL});res.json({url:s.url})}catch{res.status(500).json({error:'Stripe error'})}});app.listen(PORT,()=>console.log('API on :'+PORT));
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import { PrismaClient } from "@prisma/client";  
+
+dotenv.config();
+
+const app = express();
+const prisma = new PrismaClient();
+
+app.use(cors());
+app.use(express.json());
+
+// Root test route
+app.get("/", (req, res) => {
+  res.send("✅ Backend is running");
+});
+
+// Database test route
+app.get("/test-db", async (req, res) => {
+  try {
+    const users = await prisma.user.findMany();
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("❌ Database connection failed");
+  }
+});
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
