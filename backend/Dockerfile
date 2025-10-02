@@ -1,20 +1,20 @@
+# /backend/Dockerfile
 FROM node:18-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy package.json and install dependencies
+# Install deps
 COPY package.json package-lock.json* ./
 RUN npm install
 
-# Copy rest of the code
+# Copy code
 COPY . .
 
-# Generate Prisma client and build app
-RUN npx prisma generate && npx esbuild src/index.js --bundle --platform=node --target=node18 --outfile=dist/index.js
+# Generate Prisma client (no DB needed for this step)
+RUN npx prisma generate
 
-# Expose app port
+# App port
 EXPOSE 4000
 
-# Start the app
-CMD ["node", "dist/index.js"]
+# Start server directly from source
+CMD ["node", "src/index.js"]
