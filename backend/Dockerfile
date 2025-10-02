@@ -13,4 +13,4 @@ COPY . .
 EXPOSE 4000
 
 # Start the API from source (no esbuild needed)
-CMD ["node", "src/index.js"]
+CMD ["sh", "-c", "npx prisma generate && node src/index.js"]
