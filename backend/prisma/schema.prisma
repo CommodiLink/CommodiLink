@@ -1,0 +1,9 @@
+generator client { provider = 'prisma-client-js' }
+datasource db { provider = 'postgresql'; url = env('DATABASE_URL') }
+model User{ id Int @id @default(autoincrement()) email String @unique password String role String @default('user') createdAt DateTime @default(now()) messages Message[] }
+model Company{ id Int @id @default(autoincrement()) name String type String country String? verified Boolean @default(false) createdAt DateTime @default(now()) listings Listing[] verifs Verification[] buyerRooms DealRoom[] @relation('Buyer') sellerRooms DealRoom[] @relation('Seller') }
+model Listing{ id Int @id @default(autoincrement()) companyId Int title String commodity String quantity Float? price Float? createdAt DateTime @default(now()) Company Company @relation(fields:[companyId],references:[id]) }
+model Verification{ id Int @id @default(autoincrement()) companyId Int status String @default('submitted') vendorRef String? createdAt DateTime @default(now()) Company Company @relation(fields:[companyId],references:[id]) }
+model DealRoom{ id Int @id @default(autoincrement()) title String buyerCompanyId Int sellerCompanyId Int status String @default('open') createdAt DateTime @default(now()) buyer Company @relation('Buyer',fields:[buyerCompanyId],references:[id]) seller Company @relation('Seller',fields:[sellerCompanyId],references:[id]) messages Message[] docs Doc[] }
+model Message{ id Int @id @default(autoincrement()) dealRoomId Int authorUserId Int body String createdAt DateTime @default(now()) room DealRoom @relation(fields:[dealRoomId],references:[id]) author User @relation(fields:[authorUserId],references:[id]) }
+model Doc{ id Int @id @default(autoincrement()) dealRoomId Int uploaderUserId Int filename String createdAt DateTime @default(now()) room DealRoom @relation(fields:[dealRoomId],references:[id]) }

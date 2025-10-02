@@ -1,0 +1,30 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: commodilink
+    ports: ['5432:5432']
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/commodilink?schema=public
+      JWT_SECRET: dev_secret_change_me
+      CORS_ORIGIN: http://localhost:3000
+      STRIPE_SECRET_KEY: sk_test_xxx
+      STRIPE_PRICE_BASIC: price_basic_500yr
+      STRIPE_PRICE_PREMIUM: price_premium_2500yr
+      STRIPE_PRICE_ENTERPRISE: price_enterprise_6000yr
+      STRIPE_SUCCESS_URL: http://localhost:3000/pricing?success=1
+      STRIPE_CANCEL_URL: http://localhost:3000/pricing?canceled=1
+    ports: ['4000:4000']
+    depends_on: [db]
+  frontend:
+    build: ./frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:4000
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_xxx
+    ports: ['3000:3000']
+    depends_on: [backend]

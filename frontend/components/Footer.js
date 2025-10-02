@@ -1,0 +1,1 @@
+export default function Footer(){return(<footer className='bg-brand-900 text-white mt-16'><div className='container py-8 text-sm flex flex-col md:flex-row items-center justify-between gap-3'><div>© CommodiLink</div><div className='opacity-80'>Confidential – ALL RIGHTS RESERVED | Elle Crawford | +44 7713 846789</div></div></footer>)}
