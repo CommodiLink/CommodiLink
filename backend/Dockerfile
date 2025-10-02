@@ -1,20 +1,16 @@
-# /backend/Dockerfile
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Install deps
+# Install dependencies
 COPY package.json package-lock.json* ./
 RUN npm install
 
-# Copy code
+# Copy the app
 COPY . .
 
-# Generate Prisma client (no DB needed for this step)
-RUN npx prisma generate
-
-# App port
+# Expose the port your app uses
 EXPOSE 4000
 
-# Start server directly from source
+# Start the API from source (no esbuild needed)
 CMD ["node", "src/index.js"]
