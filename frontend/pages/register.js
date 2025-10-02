@@ -1,5 +1,0 @@
-import { useState } from 'react'; import axios from 'axios';
-export default function Register() {
-  const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
-  const submit = async (e)=>{ e.preventDefault(); const r = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/register`, { email, password }); localStorage.setItem('token', r.data.token); window.location.href='/dashboard'; };
-  return (<div className="min-h-screen flex items-center justify-center p-6"><form onSubmit={submit} className="w-full max-w-md border p-6 rounded-xl shadow"><h2 className="text-2xl font-bold mb-4">Create Account</h2><input className="border p-2 w-full mb-3" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} /><input className="border p-2 w-full mb-3" type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} /><button className="bg-blue-700 text-white px-4 py-2 rounded">Register</button></form></div>); }
