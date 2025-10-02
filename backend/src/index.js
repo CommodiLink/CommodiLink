@@ -1,35 +1,31 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";  
-
-dotenv.config();
-
-const app = express();
-const prisma = new PrismaClient();
-
-app.use(cors());
-app.use(express.json());
-
-// Root test route
-app.get("/", (req, res) => {
-  res.send("✅ Backend is running");
-});
-
-// Database test route
-app.get("/test-db", async (req, res) => {
+// TEMP: quick seed (remove after it runs once)
+app.post("/seed", async (req, res) => {
   try {
-    const users = await prisma.user.findMany();
-    res.json(users);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("❌ Database connection failed");
-  }
-});
+    const company = await prisma.company.create({
+      data: { name: "Acme Trading", type: "Broker" }
+    });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+    const user = await prisma.user.create({
+      data: {
+        email: "test@example.com",
+        password: "demo",   // demo only
+        role: "user"
+      }
+    });
+
+    await prisma.listing.create({
+      data: {
+        companyId: company.id,
+        title: "Crude Oil",
+        commodity: "Oil",
+        quantity: 1000,
+        price: 78.5
+      }
+    });
+
+    res.json({ seeded: true, company, user });
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("Seed failed");
+  }
 });
