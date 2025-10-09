@@ -1,3 +1,4 @@
+// frontend/pages/dashboard.js
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
@@ -6,39 +7,28 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-    if (!base) {
-      setLoading(false);
-      return;
-    }
+    const t = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+    const headers = t ? { Authorization: `Bearer ${t}` } : {};
+
     axios
-      .get(`${base}/api/companies`)
-      .then((res) => setCompanies(res.data || []))
+      .get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/companies`, { headers })
+      .then((res) => setCompanies(res.data))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, []);
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <h1>Dashboard</h1>
       {loading ? (
-        <p>Loading…</p>
+        <p>Loading...</p>
       ) : (
         <ul>
-          {companies.map((c) => (
-            <li key={c.id ?? c.name}>{c.name}</li>
+          {companies.map((c, i) => (
+            <li key={i}>{c.name || c.companyName || JSON.stringify(c)}</li>
           ))}
         </ul>
       )}
     </div>
   );
-}
-
-export async function getServerSideProps() {
-  return { props: {} };
-}
-
-
-export async function getServerSideProps() {
-  return { props: {} };
 }
