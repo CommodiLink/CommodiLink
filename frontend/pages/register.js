@@ -1,1 +1,41 @@
-import {useState} from 'react';import axios from 'axios';export default function Register(){const [email,setEmail]=useState('');const [password,setPassword]=useState('');const submit=async(e)=>{e.preventDefault();const r=await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/register`,{email,password});localStorage.setItem('token',r.data.token);window.location.href='/dashboard';};return(<div className='container py-16'><div className='max-w-md mx-auto card'><div className='card-body'><h2 className='text-2xl font-bold mb-4'>Create your account</h2><form onSubmit={submit} className='space-y-3'><input className='border p-2 w-full rounded-lg' placeholder='Email' value={email} onChange={e=>setEmail(e.target.value)}/><input className='border p-2 w-full rounded-lg' type='password' placeholder='Password' value={password} onChange={e=>setPassword(e.target.value)}/><button className='btn btn-primary w-full'>Create Account</button></form></div></div></div>)}
+import { useState } from 'react';
+import axios from 'axios';
+
+export default function Register() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [msg, setMsg] = useState('');
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (!base) return;
+    try {
+      await axios.post(`${base}/api/auth/register`, { email, password });
+      setMsg('Account created');
+    } catch {
+      setMsg('Registration failed');
+    }
+  };
+
+  return (
+    <div style={{ padding: 24 }}>
+      <h1>Register</h1>
+      <form onSubmit={submit}>
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          type="password"
+        />
+        <button type="submit">Create account</button>
+      </form>
+      {msg && <p>{msg}</p>}
+    </div>
+  );
+}
+
+export async function getServerSideProps() {
+  return { props: {} };
+}
