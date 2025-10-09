@@ -1,1 +1,26 @@
-export default function Home(){return(<div className='bg-gradient-to-b from-brand-800 to-brand-700 text-white'><section className='container py-20 text-center'><div className='mx-auto max-w-3xl'><span className='badge'>Verified Commodities Exchange</span><h1 className='text-5xl font-bold mt-4'>Trade oil & commodities with trust</h1><p className='mt-4 text-lg opacity-90'>Refineries, mines, brokers, buyers and certified shippers — all in one compliance-first marketplace.</p><div className='mt-8 flex items-center justify-center gap-4'><a href='/register' className='btn btn-primary'>Get Started</a><a href='/pricing' className='btn btn-outline'>See Pricing</a></div></div></section></div>)}
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+
+export default function Home() {
+  const [ping, setPing] = useState('…');
+
+  useEffect(() => {
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (!base) return;
+    axios
+      .get(`${base}/api/health`)
+      .then((res) => setPing(res.data?.status ?? 'ok'))
+      .catch(() => setPing('backend unreachable'));
+  }, []);
+
+  return (
+    <div style={{ padding: 24 }}>
+      <h1>CommodiLink</h1>
+      <p>Backend status: {ping}</p>
+    </div>
+  );
+}
+
+export async function getServerSideProps() {
+  return { props: {} };
+}
