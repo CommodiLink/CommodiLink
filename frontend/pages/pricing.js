@@ -1,1 +1,15 @@
-import {loadStripe} from '@stripe/stripe-js';const plans=[{id:'basic',name:'Basic',price:'$500/yr',features:['Verified Directory','Post mandates']},{id:'premium',name:'Premium',price:'$2,500/yr',features:['Everything in Basic','Deal Rooms','Priority support']},{id:'enterprise',name:'Enterprise',price:'$6,000/yr',features:['Everything in Premium','Multiple seats','Custom SLAs']}];export default function Pricing(){const checkout=async(plan)=>{const stripe=await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);const res=await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/stripe/create-checkout-session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan})});const data=await res.json();if(data.url) window.location.href=data.url; else alert('Stripe not configured.')};return(<div className='container py-16'><h1 className='text-4xl font-bold text-center mb-10'>Pricing</h1><div className='grid md:grid-cols-3 gap-6'>{plans.map(p=>(<div key={p.id} className='card'><div className='card-body text-center'><h3 className='text-2xl font-semibold'>{p.name}</h3><div className='text-3xl font-bold mt-2'>{p.price}</div><ul className='mt-4 text-left space-y-1'>{p.features.map((f,i)=>(<li key={i}>• {f}</li>))}</ul><button onClick={()=>checkout(p.id)} className='btn btn-primary w-full mt-6'>Choose {p.name}</button></div></div>))}</div></div>)}
+export default function Pricing() {
+  return (
+    <div style={{ padding: 24 }}>
+      <h1>Pricing</h1>
+      <ul>
+        <li>Free — basic access</li>
+        <li>Pro — contact us</li>
+      </ul>
+    </div>
+  );
+}
+
+export async function getServerSideProps() {
+  return { props: {} };
+}
