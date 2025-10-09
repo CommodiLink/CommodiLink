@@ -1,1 +1,42 @@
-import {useEffect,useState} from 'react';import axios from 'axios';export default function DealRooms(){const [rooms,setRooms]=useState([]);const [title,setTitle]=useState('');const [buyerId,setBuyerId]=useState('');const [sellerId,setSellerId]=useState('');const t=typeof window!=='undefined'?localStorage.getItem('token'):'';useEffect(()=>{if(!t)return(window.location.href='/login');axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/dealrooms`,{headers:{Authorization:`Bearer ${t}`}}).then(r=>setRooms(r.data));},[]);const create=async(e)=>{e.preventDefault();const r=await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/dealrooms`,{title,buyerCompanyId:buyerId,sellerCompanyId:sellerId},{headers:{Authorization:`Bearer ${t}`}});setRooms([r.data,...rooms]);setTitle('');setBuyerId('');setSellerId('');};return(<div className='container py-12'><div className='flex items-center justify-between mb-6'><h1 className='text-3xl font-bold'>Deal Rooms</h1></div><div className='card mb-8'><div className='card-body'><h3 className='font-semibold mb-3'>Create Room</h3><form onSubmit={create} className='grid md:grid-cols-4 gap-3'><input className='border p-2 rounded-lg' placeholder='Title' value={title} onChange={e=>setTitle(e.target.value)}/><input className='border p-2 rounded-lg' placeholder='Buyer Company ID' value={buyerId} onChange={e=>setBuyerId(e.target.value)}/><input className='border p-2 rounded-lg' placeholder='Seller Company ID' value={sellerId} onChange={e=>setSellerId(e.target.value)}/><button className='btn btn-primary'>Create</button></form></div></div><div className='grid md:grid-cols-2 gap-4'>{rooms.map(r=>(<div key={r.id} className='card'><div className='card-body flex items-center justify-between'><div><div className='text-lg font-semibold'>{r.title}</div><div className='text-sm text-gray-600'>Room #{r.id} • Status: {r.status}</div></div><a className='btn btn-primary' href={`/deal-rooms/${r.id}`}>Open</a></div></div>))}</div></div>)}
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+
+export default function DealRooms() {
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (!base) {
+      setLoading(false);
+      return;
+    }
+    axios
+      .get(`${base}/api/dealrooms`)
+      .then((res) => setRooms(res.data || []))
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div style={{ padding: 24 }}>
+      <h1>Deal Rooms</h1>
+      {loading ? (
+        <p>Loading…</p>
+      ) : rooms.length === 0 ? (
+        <p>No rooms yet.</p>
+      ) : (
+        <ul>
+          {rooms.map((r) => (
+            <li key={r.id}>{r.title}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export async function getServerSideProps() {
+  return { props: {} };
+}
+
