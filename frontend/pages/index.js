@@ -1,69 +1,92 @@
-// frontend/pages/index.js
-import Image from "next/image";
 import Link from "next/link";
+import Image from "next/image";
+import VesselIcon from "../components/icons/VesselIcon";
+import RefineryIcon from "../components/icons/RefineryIcon";
+import DocIcon from "../components/icons/DocIcon";
+import ChatIcon from "../components/icons/ChatIcon";
 
 export default function Home() {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-center">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+    <main className="mx-auto max-w-6xl px-4">
+      <section className="grid gap-8 pt-10 md:grid-cols-2">
+        <div className="py-6">
+          <h1 className="text-5xl font-black leading-tight text-slate-900">
             Trade oil & commodities
-            <span className="block">with clarity.</span>
+            <br />
+            with clarity.
           </h1>
-          <p className="mt-4 text-lg text-slate-600">
-            Manage deal rooms, counterparties and KYC in one place.
-            Built for speed, security and transparency.
+          <p className="mt-4 max-w-xl text-lg text-slate-600">
+            Manage deal rooms, counterparties, and KYC in one place. Built for
+            speed, security and transparency.
           </p>
 
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-8 flex items-center gap-4">
             <Link
               href="/register"
-              className="rounded-lg bg-[#0033A0] px-5 py-3 text-white hover:bg-blue-800"
+              className="rounded-lg bg-[#0033A0] px-5 py-3 font-medium text-white hover:bg-blue-800"
             >
               Create account
             </Link>
             <Link
               href="/dashboard"
-              className="rounded-lg border border-slate-300 bg-white px-5 py-3 text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-300 px-5 py-3 font-medium text-slate-800 hover:border-slate-400"
             >
               View dashboard
             </Link>
           </div>
 
-          <p className="mt-3 text-sm text-slate-500">
+          <p className="mt-4 text-sm text-slate-500">
             No credit card required. Free tier available.
           </p>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-          <div className="relative h-64">
+        {/* RIGHT PANEL – hero image from /public/hero-oil.jpg */}
+        <div className="rounded-2xl border bg-white p-3 shadow-sm">
+          <div className="relative h-[320px] w-full overflow-hidden rounded-xl">
+            {/* This file must exist at /frontend/public/hero-oil.jpg */}
             <Image
-              src="https://images.unsplash.com/photo-1545239351-1141bd82e8a6?q=80&w=1400&auto=format&fit=crop"
+              src="/hero-oil.jpg"
               alt="Oil terminal"
               fill
+              sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover"
               priority
             />
           </div>
-          <div className="grid grid-cols-2 gap-4 p-5">
-            <Card title="Deal rooms" meta="Negotiate & share docs securely" />
-            <Card title="KYC" meta="Screen sanctions & PEPs" />
-            <Card title="Docs" meta="SPAs, Q88s, inspections" />
-            <Card title="Chat" meta="Keep broker chatter in one place" />
+
+          {/* Quick feature cards */}
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <FeatureCard
+              title="Deal rooms"
+              desc="Negotiate & share docs securely"
+              icon={<VesselIcon />}
+            />
+            <FeatureCard
+              title="KYC"
+              desc="Screen sanctions & PEPs"
+              icon={<RefineryIcon />}
+            />
+            <FeatureCard title="Docs" desc="SPAs, Q88s, inspections" icon={<DocIcon />} />
+            <FeatureCard
+              title="Chat"
+              desc="Keep broker chatter in one place"
+              icon={<ChatIcon />}
+            />
           </div>
         </div>
-      </div>
+      </section>
     </main>
   );
 }
 
-function Card({ title, meta }) {
+function FeatureCard({ title, desc, icon }) {
   return (
-    <div className="rounded-xl border p-4">
-      <p className="text-sm font-semibold text-slate-900">{title}</p>
-      <p className="text-xs text-slate-600">{meta}</p>
+    <div className="flex items-start gap-3 rounded-lg border bg-white p-4">
+      <span className="text-[#0033A0]">{icon}</span>
+      <div>
+        <p className="font-medium text-slate-900">{title}</p>
+        <p className="text-sm text-slate-600">{desc}</p>
+      </div>
     </div>
   );
 }
-
