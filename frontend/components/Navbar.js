@@ -6,13 +6,13 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         {/* LOGO (served from /public) */}
         <Link href="/" className="flex items-center gap-3" aria-label="CommodiLink home">
-          <img
-            src="/logo.png"           // <— EXACT path in /public
-            alt="CommodiLink Logo"
-            width="160"
-            height="40"
-            style={{ height: 40, width: "auto", display: "block" }}
-          />
+    <img
+  src="/logo.png"
+  alt="CommodiLink Logo"
+  width="220"
+  height="60"
+  style={{ height: 60, width: "auto", display: "block" }}
+/>
         </Link>
 
         {/* Right nav */}
