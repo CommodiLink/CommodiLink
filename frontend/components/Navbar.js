@@ -6,18 +6,16 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         {/* LOGO */}
         <Link href="/" className="flex items-center gap-3" aria-label="CommodiLink home">
-          <img
-            src="/logo.png"
-            alt="CommodiLink Logo"
-            width="260"          // <— increase width
-            height="70"          // <— increase height
-            style={{
-              height: "70px",     // you can bump this up to 80 or 90 if needed
-              width: "auto",
-              display: "block",
-              objectFit: "contain",
-            }}
-          />
+       <img
+  src="/logo.png"
+  alt="CommodiLink Logo"
+  style={{
+    height: "90px",      // <-- change this value to whatever size you want
+    width: "auto",
+    display: "block",
+    objectFit: "contain",
+  }}
+/>
         </Link>
 
         {/* NAV LINKS */}
