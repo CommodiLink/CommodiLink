@@ -31,3 +31,5 @@ html, body {
 .btn-primary {
   @apply bg-black text-white border-black;
 }
+/* Force brand logo sizing in case a utility class slips in somewhere */
+#brand-logo { height: 64px !important; width: auto !important; }
