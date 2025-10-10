@@ -1,22 +1,21 @@
 import Link from "next/link";
-import Image from "next/image";
 
 export default function Navbar() {
   return (
     <nav className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        {/* Logo and brand */}
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-3">
-          <Image
+          <img
             src="/logo.png"
-            alt="CommodiLink logo"
-            width={140}       // adjust if needed
-            height={40}
-            priority
+            alt="CommodiLink Logo"
+            width="160"
+            height="40"
+            style={{ height: "40px", width: "auto" }}
           />
         </Link>
 
-        {/* Navigation links */}
+        {/* Navigation */}
         <div className="flex items-center gap-6 text-sm">
           <Link href="/dashboard" className="text-slate-700 hover:text-slate-900">
             Dashboard
@@ -35,3 +34,4 @@ export default function Navbar() {
     </nav>
   );
 }
+
