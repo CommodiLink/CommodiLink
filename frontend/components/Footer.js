@@ -1,1 +1,14 @@
-export default function Footer(){return(<footer className='bg-brand-900 text-white mt-16'><div className='container py-8 text-sm flex flex-col md:flex-row items-center justify-between gap-3'><div>© CommodiLink</div><div className='opacity-80'>Confidential – ALL RIGHTS RESERVED | Elle Crawford | +44 7713 846789</div></div></footer>)}
+// frontend/components/Footer.js
+export default function Footer() {
+  return (
+    <footer className="border-t bg-white">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 text-sm text-slate-500 flex items-center justify-between">
+        <p>© {new Date().getFullYear()} CommodiLink. All rights reserved.</p>
+        <div className="flex gap-4">
+          <a href="/privacy" className="hover:text-slate-700">Privacy</a>
+          <a href="/terms" className="hover:text-slate-700">Terms</a>
+        </div>
+      </div>
+    </footer>
+  );
+}
