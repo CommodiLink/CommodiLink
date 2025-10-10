@@ -1,1 +1,63 @@
-import Image from 'next/image';import Link from 'next/link';import {useEffect,useState} from 'react';export default function Navbar(){const [loggedIn,setLoggedIn]=useState(false);useEffect(()=>{if(typeof window!=='undefined')setLoggedIn(!!localStorage.getItem('token'));},[]);const logout=()=>{localStorage.removeItem('token');window.location.href='/'};return(<header className='bg-brand-800 text-white'><div className='container flex items-center justify-between py-4'><Link href='/' className='flex items-center gap-3'><Image src='/logo-white.svg' alt='CommodiLink' width={140} height={36} priority/><span className='font-semibold'>CommodiLink</span></Link><nav className='hidden md:flex items-center gap-6'><Link href='/pricing' className='hover:opacity-90'>Pricing</Link><Link href='/dashboard' className='hover:opacity-90'>Directory</Link><Link href='/deal-rooms' className='hover:opacity-90'>Deal Rooms</Link><Link href='/kyc' className='hover:opacity-90'>KYC</Link></nav><div className='flex items-center gap-3'>{!loggedIn?(<><Link href='/login' className='btn btn-outline'>Login</Link><Link href='/register' className='btn btn-primary'>Get Started</Link></>):(<button onClick={logout} className='btn btn-primary'>Logout</button>)}</div></div></header>);}
+// frontend/components/Navbar.js
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/router";
+
+const nav = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/login", label: "Login" },
+];
+
+export default function Navbar() {
+  const { pathname } = useRouter();
+
+  return (
+    <header className="sticky top-0 z-50 border-b bg-[#0033A0] shadow-sm">
+      <nav className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        {/* Brand */}
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src="/logo.png"          // <- your uploaded logo
+            alt="CommodiLink"
+            width={160}
+            height={40}
+            priority
+          />
+          {/* Optional wordmark (hide if your PNG already includes text) */}
+          {/* <span className="text-white text-xl font-semibold">CommodiLink</span> */}
+        </Link>
+
+        {/* Links */}
+        <div className="hidden items-center gap-6 md:flex">
+          {nav.map(({ href, label }) => {
+            const active = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`text-sm transition-colors ${
+                  active
+                    ? "text-white"
+                    : "text-blue-100 hover:text-white/90"
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* CTA */}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/register"
+            className="rounded-full bg-white px-4 py-2 text-sm font-medium text-[#0033A0] hover:bg-blue-50"
+          >
+            Get started
+          </Link>
+        </div>
+      </nav>
+    </header>
+  );
+}
