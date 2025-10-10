@@ -1,12 +1,20 @@
-// frontend/components/Navbar.js
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Navbar() {
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-white/70 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+    <header className="sticky top-0 z-40 w-full border-b bg-white/90 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-black" />
+          {/* This looks for /public/logo.png */}
+          <Image
+            src="/logo.png"
+            alt="CommodiLink"
+            width={28}
+            height={28}
+            priority
+            className="rounded-xl"
+          />
           <span className="text-lg font-semibold text-slate-900">CommodiLink</span>
         </Link>
 
@@ -19,6 +27,9 @@ export default function Navbar() {
           </Link>
           <Link href="/kyc" className="text-slate-800 hover:text-slate-900">
             KYC
+          </Link>
+          <Link href="/login" className="text-slate-800 hover:text-slate-900">
+            Login
           </Link>
           <Link
             href="/register"
