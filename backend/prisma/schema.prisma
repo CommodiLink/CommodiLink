@@ -1,6 +1,6 @@
 // backend/prisma/schema.prisma
 // ────────────────────────────────────────────────
-// ✅ This is a complete, valid Prisma schema file
+// ✅ Complete, valid Prisma schema for CommodiLink
 // ────────────────────────────────────────────────
 
 generator client {
@@ -12,18 +12,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ── Models ───────────────────────────────────────
+/* ===================== MODELS ===================== */
 
 model User {
-  id           Int       @id @default(autoincrement())
-  email        String    @unique
+  id           Int          @id @default(autoincrement())
+  email        String       @unique
   password     String
   name         String?
-  role         Role      @default(USER)
+  role         Role         @default(USER)
   companyId    Int?
-  company      Company?  @relation(fields: [companyId], references: [id])
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  company      Company?     @relation(fields: [companyId], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  roomMembers  RoomMember[]        // ← opposite side of RoomMember.user
   messages     Message[]
   documents    Document[]
 }
@@ -68,8 +71,12 @@ model RoomMember {
   userId    Int
   roomId    Int
   role      RoomRole  @default(VIEWER)
+
+  // Relations
   user      User      @relation(fields: [userId], references: [id])
   room      DealRoom  @relation(fields: [roomId], references: [id])
+
+  @@unique([userId, roomId])  // prevent duplicate membership rows
 }
 
 model Document {
@@ -89,11 +96,12 @@ model Message {
   roomId    Int
   userId    Int
   createdAt DateTime   @default(now())
+
   room      DealRoom   @relation(fields: [roomId], references: [id])
   user      User       @relation(fields: [userId], references: [id])
 }
 
-// ── Enums ───────────────────────────────────────
+/* ====================== ENUMS ===================== */
 
 enum Role {
   USER
@@ -123,3 +131,4 @@ enum DealStatus {
   ACTIVE
   CLOSED
 }
+
