@@ -1,90 +1,168 @@
 // backend/src/routes/dealRooms.js
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth.js";
-import { attachAccess } from "../middleware/access.js";
+import jwt from "jsonwebtoken";
+
+// Small helper: de-JWT the cookie if present
+function readUserFromCookie(req) {
+  try {
+    const raw = req.cookies?.session;
+    if (!raw) return null;
+    const decoded = jwt.verify(raw, process.env.JWT_SECRET);
+    return { id: decoded.sub, email: decoded.email, companyId: decoded.company_id };
+  } catch {
+    return null;
+  }
+}
 
 export const dealRooms = Router();
 
-/** GET /api/deal-rooms — list rooms */
-dealRooms.get("/api/deal-rooms", requireAuth(false), attachAccess, async (req, res) => {
+// -------- DEMO FALLBACK STORAGE (when Prisma isn't connected) --------
+const memory = {
+  rooms: [
+    {
+      id: "demo-1",
+      title: "Jet A1 — Nov Lift, 100k bbl",
+      status: "ACTIVE",
+      createdAt: new Date().toISOString(),
+      participants: [{ id: 1, name: "Demo Trading LLC" }],
+      lastMessageAt: new Date().toISOString(),
+    },
+  ],
+  messages: {
+    "demo-1": [
+      {
+        id: "m-1",
+        author: "Demo User",
+        body: "Welcome to the demo room 👋",
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  },
+};
+
+// Simple “are we DB-backed?” check —index.js creates globalThis.prisma if connected
+const getPrisma = () => globalThis.prisma ?? null;
+
+// ---------------------------- ROUTES ---------------------------------
+
+// List rooms (requires cookie login)
+dealRooms.get("/api/deal-rooms", async (req, res) => {
+  const user = readUserFromCookie(req);
+  if (!user) return res.status(401).json({ error: "unauthorized" });
+
+  const prisma = getPrisma();
+  if (!prisma) {
+    // demo data
+    return res.json({ rooms: memory.rooms });
+  }
+
   try {
-    const prisma = req.app.get("prisma");
-
-    if (!prisma) {
-      // Demo rooms right away
-      return res.json([
-        {
-          id: 101,
-          title: "Diesel Cargo – Fujairah > Singapore",
-          counterpart: "BlueOcean Shipping",
-          lastMessageAt: new Date().toISOString(),
-          unread: 2,
-          status: "ACTIVE",
-        },
-        {
-          id: 102,
-          title: "Jet A-1 – Rotterdam spot",
-          counterpart: "Atlas Refining Co.",
-          lastMessageAt: new Date(Date.now() - 3600_000).toISOString(),
-          unread: 0,
-          status: "DRAFT",
-        },
-      ]);
-    }
-
-    const rooms = await prisma.dealRoom.findMany({
-      orderBy: { updatedAt: "desc" },
+    const rows = await prisma.dealRoom.findMany({
+      where: {
+        members: { some: { userId: user.id } },
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        members: { include: { user: { select: { id: true, email: true } } } },
+      },
       take: 100,
-      include: { counterpart: true },
     });
 
-    const mapped = rooms.map(r => ({
+    const rooms = rows.map((r) => ({
       id: r.id,
       title: r.title,
-      counterpart: r.counterpart?.name ?? "Counterparty",
-      lastMessageAt: r.updatedAt.toISOString?.() ?? new Date().toISOString(),
-      unread: 0,
-      status: r.status ?? "ACTIVE",
+      status: r.status,
+      createdAt: r.createdAt,
+      participants:
+        r.members?.map((m) => ({ id: m.userId, name: m.user?.email })) ?? [],
+      lastMessageAt: r.updatedAt,
     }));
 
-    res.json(mapped);
+    res.json({ rooms });
   } catch (err) {
-    console.error("GET /api/deal-rooms error", err);
-    res.status(500).json({ error: "rooms_failed" });
+    console.error("GET /api/deal-rooms error:", err);
+    res.status(500).json({ error: "failed_to_list_rooms" });
   }
 });
 
-/** DEV: seed demo rooms into DB (safe to remove later) */
-dealRooms.post("/dev/seed-rooms", async (req, res) => {
+// Create a room
+dealRooms.post("/api/deal-rooms", async (req, res) => {
+  const user = readUserFromCookie(req);
+  if (!user) return res.status(401).json({ error: "unauthorized" });
+
+  const { title } = req.body ?? {};
+  if (!title || typeof title !== "string" || title.trim().length < 3) {
+    return res.status(400).json({ error: "title_min_3" });
+  }
+
+  const prisma = getPrisma();
+  if (!prisma) {
+    // demo add
+    const room = {
+      id: `demo-${Date.now()}`,
+      title: title.trim(),
+      status: "ACTIVE",
+      createdAt: new Date().toISOString(),
+      participants: [{ id: user.id ?? 1, name: user.email ?? "Demo User" }],
+      lastMessageAt: new Date().toISOString(),
+    };
+    memory.rooms.unshift(room);
+    memory.messages[room.id] = [];
+    return res.status(201).json({ room });
+  }
+
   try {
-    const prisma = req.app.get("prisma");
-    if (!prisma) return res.status(503).json({ error: "db_unavailable" });
-
-    // Quick minimal seed
-    const c1 = await prisma.company.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { name: "Atlas Refining Co.", country: "UAE", sector: "Refinery" },
+    const created = await prisma.dealRoom.create({
+      data: {
+        title: title.trim(),
+        status: "ACTIVE",
+        members: {
+          create: [{ userId: user.id, role: "OWNER" }],
+        },
+      },
+      include: {
+        members: { include: { user: { select: { id: true, email: true } } } },
+      },
     });
 
-    const c2 = await prisma.company.upsert({
-      where: { id: 2 },
-      update: {},
-      create: { name: "BlueOcean Shipping", country: "Greece", sector: "Shipping" },
-    });
+    const room = {
+      id: created.id,
+      title: created.title,
+      status: created.status,
+      createdAt: created.createdAt,
+      participants:
+        created.members?.map((m) => ({ id: m.userId, name: m.user?.email })) ??
+        [],
+      lastMessageAt: created.updatedAt,
+    };
 
-    await prisma.dealRoom.createMany({
-      data: [
-        { title: "Diesel Cargo – Fujairah > Singapore", status: "ACTIVE", counterpartId: c2.id },
-        { title: "Jet A-1 – Rotterdam spot", status: "DRAFT", counterpartId: c1.id },
-      ],
-      skipDuplicates: true,
-    });
+    res.status(201).json({ room });
+  } catch (err) {
+    console.error("POST /api/deal-rooms error:", err);
+    res.status(500).json({ error: "failed_to_create_room" });
+  }
+});
 
-    res.json({ ok: true });
-  } catch (e) {
-    console.error("POST /dev/seed-rooms error", e);
-    res.status(500).json({ error: "seed_failed" });
+// (Optional) room messages — demo only
+dealRooms.get("/api/deal-rooms/:id/messages", async (req, res) => {
+  const user = readUserFromCookie(req);
+  if (!user) return res.status(401).json({ error: "unauthorized" });
+
+  const prisma = getPrisma();
+  if (!prisma) {
+    return res.json({ messages: memory.messages[req.params.id] ?? [] });
+  }
+
+  try {
+    const msgs = await prisma.message.findMany({
+      where: { roomId: req.params.id },
+      orderBy: { createdAt: "asc" },
+      take: 500,
+    });
+    res.json({ messages: msgs });
+  } catch (err) {
+    console.error("GET /api/deal-rooms/:id/messages error:", err);
+    res.status(500).json({ error: "failed_to_list_messages" });
   }
 });
 
