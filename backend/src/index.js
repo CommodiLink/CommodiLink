@@ -50,6 +50,12 @@ try {
   );
 }
 
+/**
+ * ✅ Make Prisma available to ALL routes (step 4)
+ * In route files you can:  const prisma = req.app.get("prisma");
+ */
+app.set("prisma", prisma);
+
 // Home
 app.get("/", (_req, res) => res.type("text/plain").send("✅ Backend is running"));
 
