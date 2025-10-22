@@ -20,7 +20,6 @@ dotenv.config();
 
 const app = express();
 
-// Allow your frontend (works locally too)
 const FRONTEND_ORIGIN =
   process.env.FRONTEND_ORIGIN ||
   process.env.CORS_ORIGIN ||
@@ -44,22 +43,14 @@ try {
   await prisma.$connect();
   console.log("Prisma connected");
 } catch (e) {
-  console.warn(
-    "Prisma not available yet (continuing without DB):",
-    e?.message || e
-  );
+  console.warn("Prisma not available yet (continuing without DB):", e?.message || e);
 }
-
-/**
- * ✅ Make Prisma available to ALL routes (step 4)
- * In route files you can:  const prisma = req.app.get("prisma");
- */
-app.set("prisma", prisma);
+// expose so routers can detect demo vs DB
+globalThis.prisma = prisma;
 
 // Home
 app.get("/", (_req, res) => res.type("text/plain").send("✅ Backend is running"));
 
-// Lightweight health (NEVER hits DB; always 200)
 app.get(["/health", "/api/health", "/api/status"], (_req, res) => {
   res.json({
     ok: true,
@@ -69,35 +60,22 @@ app.get(["/health", "/api/health", "/api/status"], (_req, res) => {
   });
 });
 
-// DB health check (returns 200 with db status instead of 500)
+// DB health check
 app.get("/healthz", async (_req, res) => {
   const payload = { ok: true, db: "skipped" };
-
-  if (!prisma) {
-    payload.db = "unavailable";
-    return res.json(payload);
-  }
-
+  if (!prisma) return res.json({ ...payload, db: "unavailable" });
   try {
     await prisma.$queryRaw`SELECT 1`;
-    payload.db = "ok";
-    res.json(payload);
+    res.json({ ...payload, db: "ok" });
   } catch (err) {
-    payload.db = "error";
-    payload.error = err?.message || String(err);
-    res.json(payload);
+    res.json({ ...payload, db: "error", error: err?.message || String(err) });
   }
 });
 
-// ================== SIMPLE AUTH (cookie-based) ==================
-
-// POST /api/login
-// Accepts { email, password } and sets an HttpOnly cookie "session".
-// Allows a demo user when DB is missing so you can test the UI.
+// ---------------- AUTH (cookie) ----------------
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body ?? {};
-  if (!email || !password)
-    return res.status(400).json({ error: "email and password required" });
+  if (!email || !password) return res.status(400).json({ error: "email and password required" });
 
   try {
     let user = null;
@@ -105,14 +83,12 @@ app.post("/api/login", async (req, res) => {
     if (prisma) {
       try {
         user = await prisma.user.findFirst({ where: { email } });
-        // TODO: verify password hash if you store hashes
+        // TODO: verify password hash if stored
       } catch {}
     }
 
-    if (!user) {
-      if (email === "demo@commodilink.com" && password === "Password1") {
-        user = { id: 1, email: "demo@commodilink.com", companyId: 1 };
-      }
+    if (!user && email === "demo@commodilink.com" && password === "Password1") {
+      user = { id: 1, email: "demo@commodilink.com", companyId: 1 };
     }
 
     if (!user) return res.status(401).json({ error: "invalid credentials" });
@@ -126,7 +102,7 @@ app.post("/api/login", async (req, res) => {
     res.cookie("session", token, {
       httpOnly: true,
       sameSite: "lax",
-      secure: false, // set true when serving over HTTPS
+      secure: false, // set true when you have HTTPS on both services + custom domain
       maxAge: 2 * 60 * 60 * 1000,
     });
 
@@ -137,13 +113,11 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// Optional logout
 app.post("/api/logout", (_req, res) => {
   res.clearCookie("session", { httpOnly: true, sameSite: "lax", secure: false });
   res.json({ ok: true });
 });
 
-// GET /api/me — verifies cookie and returns user + access flags
 app.get("/api/me", requireAuth(), attachAccess, (req, res) => {
   const { user, company, kycVerified, paid } = req.access;
   res.json({
@@ -153,52 +127,7 @@ app.get("/api/me", requireAuth(), attachAccess, (req, res) => {
   });
 });
 
-// ================== DEMO USER ENDPOINTS (optional) ==================
-
-app.get("/users", async (_req, res) => {
-  if (!prisma) return res.status(503).json({ error: "database not available" });
-  try {
-    const users = await prisma.user.findMany({
-      take: 50,
-      orderBy: { id: "asc" },
-    });
-    res.json(users);
-  } catch (err) {
-    console.error("GET /users error:", err);
-    res.status(500).json({ error: String(err?.message || err) });
-  }
-});
-
-app.post("/users", async (req, res) => {
-  if (!prisma) return res.status(503).json({ error: "database not available" });
-  try {
-    const { email, password } = req.body ?? {};
-    if (!email || !password)
-      return res.status(400).json({ error: "email and password required" });
-
-    const user = await prisma.user.create({ data: { email, password } });
-    res.status(201).json(user);
-  } catch (err) {
-    if (err?.code === "P2002")
-      return res.status(409).json({ error: "email already exists" });
-    console.error("POST /users error:", err);
-    res.status(500).json({ error: String(err?.message || err) });
-  }
-});
-
-app.get("/dev/seed", async (_req, res) => {
-  if (!prisma) return res.status(503).json({ error: "database not available" });
-  try {
-    const email = `demo+${Date.now()}@example.com`;
-    const user = await prisma.user.create({ data: { email, password: "demo" } });
-    res.json(user);
-  } catch (err) {
-    console.error("GET /dev/seed error:", err);
-    res.status(500).json({ error: String(err?.message || err) });
-  }
-});
-
-// ================== MOUNT FEATURE ROUTERS ==================
+// ---------------- ROUTERS ----------------
 app.use(companies);
 app.use(dealRooms);
 app.use(kyc);
@@ -206,7 +135,11 @@ app.use(billing);
 app.use(docs);
 app.use(analytics);
 
-// Bind to Render's dynamic port
+// 404 helper (so the client gets JSON, not HTML)
+app.use((req, res) => {
+  res.status(404).json({ error: "not_found", path: req.path });
+});
+
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 API listening on :${PORT}`);
