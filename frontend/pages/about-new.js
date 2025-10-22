@@ -250,6 +250,16 @@ export default function AboutNew() {
 }
 
 /* ---------- Small components ---------- */
+function Feature({ icon, title, desc }) {
+  return (
+    <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm hover:shadow-lg transition">
+      <div className="mb-4 flex items-center justify-center text-[#0A2A8F]">{icon}</div>
+      <h3 className="font-semibold text-lg text-[#0A2A8F]">{title}</h3>
+      <p className="mt-2 text-sm text-slate-600">{desc}</p>
+    </div>
+  );
+}
+
 function WhoCard({ icon, title, desc }) {
   return (
     <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
