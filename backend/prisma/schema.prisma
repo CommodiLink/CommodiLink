@@ -1,18 +1,16 @@
 // backend/prisma/schema.prisma
-// ────────────────────────────────────────────────
-// ✅ Complete, valid Prisma schema for CommodiLink
-// ────────────────────────────────────────────────
-
+// Prisma Client generator
 generator client {
   provider = "prisma-client-js"
 }
 
+// Your database connection (Postgres assumed)
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-/* ===================== MODELS ===================== */
+// MODELS ---------------------------------------------------------
 
 model User {
   id           Int          @id @default(autoincrement())
@@ -25,21 +23,21 @@ model User {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  // Relations
-  roomMembers  RoomMember[]        // ← opposite side of RoomMember.user
+  // relations
+  roomMembers  RoomMember[]
   messages     Message[]
   documents    Document[]
 }
 
 model Company {
-  id             Int           @id @default(autoincrement())
-  name           String
-  kycStatus      KycStatus     @default(PENDING)
-  subscription   Subscription?
-  users          User[]
-  dealRooms      DealRoom[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id           Int           @id @default(autoincrement())
+  name         String
+  kycStatus    KycStatus     @default(PENDING)
+  subscription Subscription?
+  users        User[]
+  dealRooms    DealRoom[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Subscription {
@@ -72,22 +70,21 @@ model RoomMember {
   roomId    Int
   role      RoomRole  @default(VIEWER)
 
-  // Relations
   user      User      @relation(fields: [userId], references: [id])
   room      DealRoom  @relation(fields: [roomId], references: [id])
 
-  @@unique([userId, roomId])  // prevent duplicate membership rows
+  @@unique([userId, roomId])
 }
 
 model Document {
-  id          Int        @id @default(autoincrement())
-  name        String
-  url         String
-  roomId      Int?
-  room        DealRoom?  @relation(fields: [roomId], references: [id])
-  userId      Int?
-  user        User?      @relation(fields: [userId], references: [id])
-  createdAt   DateTime   @default(now())
+  id        Int        @id @default(autoincrement())
+  name      String
+  url       String
+  roomId    Int?
+  room      DealRoom?  @relation(fields: [roomId], references: [id])
+  userId    Int?
+  user      User?      @relation(fields: [userId], references: [id])
+  createdAt DateTime   @default(now())
 }
 
 model Message {
@@ -101,7 +98,7 @@ model Message {
   user      User       @relation(fields: [userId], references: [id])
 }
 
-/* ====================== ENUMS ===================== */
+// ENUMS ----------------------------------------------------------
 
 enum Role {
   USER
@@ -131,4 +128,3 @@ enum DealStatus {
   ACTIVE
   CLOSED
 }
-
