@@ -1,61 +1,90 @@
-import express from "express";
-import { PrismaClient } from "@prisma/client";
+// backend/src/routes/dealRooms.js
+import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
-import { attachAccess, requirePaidAndVerified } from "../middleware/access.js";
+import { attachAccess } from "../middleware/access.js";
 
-export const dealRooms = express.Router();
-const prisma = new PrismaClient();
+export const dealRooms = Router();
 
-dealRooms.get("/api/deal-rooms", requireAuth(), attachAccess, requirePaidAndVerified, async (_req, res) => {
+/** GET /api/deal-rooms — list rooms */
+dealRooms.get("/api/deal-rooms", requireAuth(false), attachAccess, async (req, res) => {
   try {
-    if (prisma) {
-      try {
-        const rooms = await prisma.dealRoom.findMany({ orderBy: { updatedAt: "desc" } });
-        if (rooms?.length) return res.json(rooms);
-      } catch {}
+    const prisma = req.app.get("prisma");
+
+    if (!prisma) {
+      // Demo rooms right away
+      return res.json([
+        {
+          id: 101,
+          title: "Diesel Cargo – Fujairah > Singapore",
+          counterpart: "BlueOcean Shipping",
+          lastMessageAt: new Date().toISOString(),
+          unread: 2,
+          status: "ACTIVE",
+        },
+        {
+          id: 102,
+          title: "Jet A-1 – Rotterdam spot",
+          counterpart: "Atlas Refining Co.",
+          lastMessageAt: new Date(Date.now() - 3600_000).toISOString(),
+          unread: 0,
+          status: "DRAFT",
+        },
+      ]);
     }
-    res.json([
-      { id: 101, title: "Atlas x Northstar — D2", commodity: "Gasoil (D2)", volume: "50k MT", status: "ACTIVE", updatedAt: new Date() },
-      { id: 102, title: "Baltic Refineries — FOB QLNG", commodity: "LNG", volume: "1 cargo", status: "DRAFT", updatedAt: new Date() }
-    ]);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "rooms_load_failed" });
+
+    const rooms = await prisma.dealRoom.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+      include: { counterpart: true },
+    });
+
+    const mapped = rooms.map(r => ({
+      id: r.id,
+      title: r.title,
+      counterpart: r.counterpart?.name ?? "Counterparty",
+      lastMessageAt: r.updatedAt.toISOString?.() ?? new Date().toISOString(),
+      unread: 0,
+      status: r.status ?? "ACTIVE",
+    }));
+
+    res.json(mapped);
+  } catch (err) {
+    console.error("GET /api/deal-rooms error", err);
+    res.status(500).json({ error: "rooms_failed" });
   }
 });
 
-dealRooms.get("/api/deal-rooms/:id", requireAuth(), attachAccess, requirePaidAndVerified, async (req, res) => {
-  const id = Number(req.params.id);
+/** DEV: seed demo rooms into DB (safe to remove later) */
+dealRooms.post("/dev/seed-rooms", async (req, res) => {
   try {
-    if (prisma) {
-      try {
-        const room = await prisma.dealRoom.findUnique({ where: { id } });
-        if (room) return res.json(room);
-      } catch {}
-    }
-    if (id !== 101 && id !== 102) return res.status(404).json({ error: "not_found" });
-    res.json({ id, title: id === 101 ? "Atlas x Northstar — D2" : "Baltic Refineries — FOB QLNG", status: "ACTIVE",
-               commodity: id === 101 ? "Gasoil (D2)" : "LNG", volume: id === 101 ? "50k MT" : "1 cargo",
-               members: [{ name: "You" }, { name: "Counterparty" }], messages: [], updatedAt: new Date() });
+    const prisma = req.app.get("prisma");
+    if (!prisma) return res.status(503).json({ error: "db_unavailable" });
+
+    // Quick minimal seed
+    const c1 = await prisma.company.upsert({
+      where: { id: 1 },
+      update: {},
+      create: { name: "Atlas Refining Co.", country: "UAE", sector: "Refinery" },
+    });
+
+    const c2 = await prisma.company.upsert({
+      where: { id: 2 },
+      update: {},
+      create: { name: "BlueOcean Shipping", country: "Greece", sector: "Shipping" },
+    });
+
+    await prisma.dealRoom.createMany({
+      data: [
+        { title: "Diesel Cargo – Fujairah > Singapore", status: "ACTIVE", counterpartId: c2.id },
+        { title: "Jet A-1 – Rotterdam spot", status: "DRAFT", counterpartId: c1.id },
+      ],
+      skipDuplicates: true,
+    });
+
+    res.json({ ok: true });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "room_load_failed" });
+    console.error("POST /dev/seed-rooms error", e);
+    res.status(500).json({ error: "seed_failed" });
   }
 });
 
-dealRooms.post("/api/deal-rooms", requireAuth(), attachAccess, requirePaidAndVerified, async (req, res) => {
-  const { title, commodity, volume } = req.body || {};
-  if (!title) return res.status(400).json({ error: "title_required" });
-  try {
-    if (prisma) {
-      try {
-        const created = await prisma.dealRoom.create({ data: { title, commodity, volume, companyId: req.access.company?.id ?? 1 } });
-        return res.status(201).json(created);
-      } catch {}
-    }
-    res.status(201).json({ id: Math.floor(Math.random() * 100000), title, commodity, volume, status: "DRAFT", updatedAt: new Date() });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "room_create_failed" });
-  }
-});
