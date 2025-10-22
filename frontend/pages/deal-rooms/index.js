@@ -1,110 +1,115 @@
+// frontend/pages/deal-rooms/index.js
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import http from "@/lib/http";
 
-const BRAND = "#0A2A8F";
+export default function DealRoomsPage() {
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [title, setTitle] = useState("");
 
-export default function DealRooms() {
-  const [rooms, setRooms] = useState(null);
-  const [error, setError] = useState("");
+  async function load() {
+    setLoading(true);
+    setErr("");
+    try {
+      const res = await http.get("/api/deal-rooms");
+      setRooms(res.data.rooms || []);
+    } catch (e) {
+      console.error(e);
+      setErr("Unable to load rooms");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onCreate() {
+    if (!title.trim()) return;
+    setCreating(true);
+    setErr("");
+    try {
+      const res = await http.post("/api/deal-rooms", { title: title.trim() });
+      setRooms((r) => [res.data.room, ...r]);
+      setTitle("");
+    } catch (e) {
+      console.error(e);
+      setErr(e?.response?.data?.error || "create_failed");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const { data } = await http.get("/api/deal-rooms");
-        if (mounted) setRooms(data || []);
-      } catch (e) {
-        console.error(e);
-        if (mounted) setError("Unable to load rooms");
-      }
-    })();
-    return () => (mounted = false);
+    load();
   }, []);
 
   return (
-    <main className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-white to-blue-100 text-slate-800">
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <header className="mb-8">
-          <h1 className="text-3xl font-black text-slate-900">Deal Rooms</h1>
-          <p className="mt-2 text-slate-600">
-            Secure rooms for negotiations, files, audit trails and e-signatures.
-          </p>
-          <div className="mt-6">
-            <Link
-              href="#"
-              className="inline-flex items-center rounded-xl px-4 py-2 font-medium text-white shadow"
-              style={{ background: `linear-gradient(180deg, ${BRAND}, #061A69)` }}
-            >
-              + New Room
-            </Link>
-          </div>
-        </header>
+    <main className="mx-auto max-w-6xl px-4 py-10">
+      <h1 className="text-4xl font-black text-slate-900">Deal Rooms</h1>
+      <p className="mt-2 text-slate-600">
+        Secure rooms for negotiations, files, audit trails and e-signatures.
+      </p>
 
-        {/* States */}
-        {!rooms && !error && (
-          <div className="rounded-xl border bg-white p-6 text-slate-600">Loading…</div>
-        )}
-
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-            {error}
-          </div>
-        )}
-
-        {rooms && rooms.length === 0 && (
-          <div className="rounded-xl border bg-white p-6">
-            <p className="text-slate-600">
-              No rooms yet. Click <strong>New Room</strong> to start a deal.
-            </p>
-          </div>
-        )}
-
-        {rooms && rooms.length > 0 && (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {rooms.map((r) => (
-              <RoomCard key={r.id} room={r} />
-            ))}
-          </div>
-        )}
+      {/* Create */}
+      <div className="mt-6 flex gap-3">
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Room title (e.g., Jet A1 — Nov Lift)"
+          className="w-full rounded-lg border px-4 py-2"
+        />
+        <button
+          onClick={onCreate}
+          disabled={creating || !title.trim()}
+          className="rounded-lg bg-[#0A2A8F] px-5 py-2 font-medium text-white disabled:opacity-60"
+        >
+          {creating ? "Creating…" : "+ New Room"}
+        </button>
       </div>
 
-      <style jsx global>{`
-        .room-pill {
-          border-color: rgba(10, 42, 143, 0.15);
-          background: rgba(10, 42, 143, 0.06);
-          color: ${BRAND};
-        }
-      `}</style>
+      {/* Error */}
+      {err ? (
+        <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-rose-700">
+          {err}
+        </div>
+      ) : null}
+
+      {/* List */}
+      <div className="mt-8">
+        {loading ? (
+          <p className="text-slate-500">Loading…</p>
+        ) : rooms.length === 0 ? (
+          <div className="rounded-xl border bg-white p-6 text-slate-600">
+            No rooms yet. Create your first deal room above.
+          </div>
+        ) : (
+          <ul className="grid gap-4 md:grid-cols-2">
+            {rooms.map((r) => (
+              <li key={r.id} className="rounded-xl border bg-white p-5 hover:shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-slate-900">{r.title}</h3>
+                  <span className="rounded-full border px-2 py-0.5 text-xs text-slate-700">
+                    {r.status}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-slate-500">
+                  {r.participants?.map((p) => p.name).join(", ") || "—"}
+                </p>
+                <div className="mt-4">
+                  <Link
+                    href={`/deal-rooms/${encodeURIComponent(r.id)}`}
+                    className="text-[#0A2A8F] hover:underline"
+                  >
+                    Open →
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </main>
   );
 }
 
-function RoomCard({ room }) {
-  return (
-    <Link
-      href={`/deal-rooms/${room.id}`}
-      className="group block rounded-2xl border bg-white/80 p-5 shadow-sm transition hover:shadow-md"
-    >
-      <div className="flex items-start justify-between">
-        <h3 className="line-clamp-2 text-lg font-semibold text-slate-900">{room.title}</h3>
-        {room.unread > 0 && (
-          <span className="ml-3 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-2 text-xs font-bold text-white">
-            {room.unread}
-          </span>
-        )}
-      </div>
-
-      <p className="mt-2 text-sm text-slate-600">{room.counterpart}</p>
-
-      <div className="mt-4 flex items-center justify-between">
-        <span className="room-pill inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium">
-          {room.status}
-        </span>
-        <span className="text-xs text-slate-500">
-          {new Date(room.lastMessageAt).toLocaleString()}
-        </span>
-      </div>
-    </Link>
-  );
-}
