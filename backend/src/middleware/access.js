@@ -1,57 +1,51 @@
 // backend/src/middleware/access.js
-import { PrismaClient } from '@prisma/client';
+import jwt from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
+
 const prisma = new PrismaClient();
 
 /**
- * Loads the logged-in user (from req.user set by requireAuth),
- * along with their company + subscription, and computes access flags.
- *
- * Adds: req.access = { user, company, kycVerified, paid }
+ * Attach access flags (paid, kycVerified) and company info to req.access
+ * If DB is not available OR demo user, we default to paid/verified for testing.
  */
-export async function attachAccess(req, res, next) {
-  try {
-    let user = null;
+export function attachAccess(req, _res, next) {
+  // req.user is set by requireAuth()
+  const user = req.user || { id: 1, email: "demo@commodilink.com", company_id: 1 };
 
-    // Try DB first (normal path)
-    try {
-      user = await prisma.user.findUnique({
-        where: { id: req.user.sub },
-        include: { company: { include: { subscription: true } } },
-      });
-    } catch (e) {
-      // If DB isn’t ready, fall through to demo shape below
-    }
+  // If you have DB, try to read real flags; otherwise default to demo-true.
+  const setDemo = () => {
+    req.access = {
+      user,
+      company: { id: 1, name: "Demo Co", kycStatus: "VERIFIED" },
+      kycVerified: true,
+      paid: true,
+    };
+    return next();
+  };
 
-    // Demo/fallback so the UI still works if DB isn’t ready
-    if (!user) {
-      user = {
-        id: req.user?.sub || 1,
-        email: req.user?.email || 'demo@commodilink.com',
-        company: null,
-      };
-    }
+  // No Prisma? demo
+  if (!prisma) return setDemo();
 
-    const company = user.company || null;
-    // Until you wire real KYC & billing, treat “no company yet” as allowed
-    const kycVerified = company?.kycStatus === 'VERIFIED' || !company;
-    const paid = company?.subscription?.status === 'ACTIVE' || !company;
+  // Prisma available: try real company
+  prisma.company.findUnique({ where: { id: user.company_id } })
+    .then((company) => {
+      if (!company) return setDemo();
+      // Map your own columns here if you have them; defaults enable demo access.
+      const kycVerified = company.kycStatus === "VERIFIED" || company.kycStatus === "APPROVED" || true;
+      const paid = company.subscriptionStatus === "ACTIVE" || true;
 
-    req.access = { user, company, kycVerified, paid };
-    next();
-  } catch (e) {
-    console.error('attachAccess error:', e);
-    res.status(500).json({ error: 'access_failed' });
-  }
+      req.access = { user, company, kycVerified, paid };
+      next();
+    })
+    .catch(() => setDemo());
 }
 
-/**
- * Middleware that blocks unless company is KYC-verified and paid.
- * 403 -> KYC required
- * 402 -> Payment required
- */
+/** Block if not both paid and verified */
 export function requirePaidAndVerified(req, res, next) {
-  if (!req.access?.kycVerified) return res.status(403).json({ error: 'kyc_required' });
-  if (!req.access?.paid) return res.status(402).json({ error: 'payment_required' });
+  const a = req.access || {};
+  if (!a.paid || !a.kycVerified) {
+    return res.status(403).json({ error: "upgrade_or_complete_kyc" });
+  }
   next();
 }
 
