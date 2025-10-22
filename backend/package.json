@@ -6,18 +6,20 @@
     "dev": "node src/index.js",
     "build": "esbuild src/index.js --bundle --platform=node --target=node18 --outfile=dist/index.js",
     "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
-    "express": "^4.19.2",
+    "@prisma/client": "^5.17.0",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^2.4.3",
     "multer": "^1.4.5-lts.1",
-    "@prisma/client": "^5.17.0",
-    "stripe": "^14.24.0",
-    "raw-body": "^2.5.2"
+    "raw-body": "^2.5.2",
+    "stripe": "^14.24.0"
   },
   "devDependencies": {
     "esbuild": "^0.21.5",
