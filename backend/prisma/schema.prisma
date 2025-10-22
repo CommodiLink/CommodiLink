@@ -1,82 +1,77 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
 model User {
-  id         Int       @id @default(autoincrement())
-  email      String    @unique
-  password   String
-  role       String    @default("user")
-  createdAt  DateTime  @default(now())
-  messages   Message[]
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  companyId     Int?
+  company       Company?  @relation(fields: [companyId], references: [id])
+  createdAt     DateTime  @default(now())
+  role          Role      @default(USER)
 }
 
 model Company {
-  id           Int         @id @default(autoincrement())
+  id           Int            @id @default(autoincrement())
   name         String
-  type         String
-  country      String?
-  verified     Boolean     @default(false)
-  createdAt    DateTime    @default(now())
-  listings     Listing[]
-  verifs       Verification[]
-  buyerRooms   DealRoom[]  @relation("Buyer")
-  sellerRooms  DealRoom[]  @relation("Seller")
+  kycStatus    KycStatus      @default(PENDING)
+  subscription Subscription?
+  users        User[]
+  dealRooms    DealRoom[]     @relation("CompanyRooms")
 }
 
-model Listing {
+model Subscription {
   id         Int      @id @default(autoincrement())
-  companyId  Int
-  title      String
-  commodity  String
-  quantity   Float?
-  price      Float?
-  createdAt  DateTime @default(now())
   company    Company  @relation(fields: [companyId], references: [id])
-}
-
-model Verification {
-  id         Int      @id @default(autoincrement())
-  companyId  Int
-  status     String   @default("submitted")
-  vendorRef  String?
-  createdAt  DateTime @default(now())
-  company    Company  @relation(fields: [companyId], references: [id])
+  companyId  Int      @unique
+  plan       String   // e.g. PRO, ENTERPRISE
+  status     SubStatus @default(ACTIVE)
+  validUntil DateTime
 }
 
 model DealRoom {
-  id               Int       @id @default(autoincrement())
-  title            String
-  buyerCompanyId   Int
-  sellerCompanyId  Int
-  status           String    @default("open")
-  createdAt        DateTime  @default(now())
-  buyer            Company   @relation("Buyer",  fields: [buyerCompanyId],  references: [id])
-  seller           Company   @relation("Seller", fields: [sellerCompanyId], references: [id])
-  messages         Message[]
-  docs             Doc[]
+  id           Int             @id @default(autoincrement())
+  title        String
+  commodity    String?
+  volume       String?
+  status       DealStatus      @default(DRAFT)
+  companyId    Int
+  company      Company         @relation("CompanyRooms", fields: [companyId], references: [id])
+  members      DealRoomMember[]
+  messages     DealMessage[]
+  documents    DealDocument[]
+  createdAt    DateTime        @default(now())
 }
 
-model Message {
-  id           Int      @id @default(autoincrement())
-  dealRoomId   Int
-  authorUserId Int
-  body         String
-  createdAt    DateTime @default(now())
-  room         DealRoom @relation(fields: [dealRoomId], references: [id])
-  author       User     @relation(fields: [authorUserId], references: [id])
+model DealRoomMember {
+  id         Int     @id @default(autoincrement())
+  room       DealRoom @relation(fields: [roomId], references: [id])
+  roomId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  role       RoomRole @default(VIEWER)
 }
 
-model Doc {
-  id             Int      @id @default(autoincrement())
-  dealRoomId     Int
-  uploaderUserId Int
-  filename       String
-  createdAt      DateTime @default(now())
-  room           DealRoom @relation(fields: [dealRoomId], references: [id])
+model DealMessage {
+  id        Int      @id @default(autoincrement())
+  room      DealRoom @relation(fields: [roomId], references: [id])
+  roomId    Int
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  Int
+  text      String
+  createdAt DateTime @default(now())
 }
+
+model DealDocument {
+  id        Int      @id @default(autoincrement())
+  room      DealRoom @relation(fields: [roomId], references: [id])
+  roomId    Int
+  name      String
+  url       String   // use signed URLs from S3/GCS
+  createdAt DateTime @default(now())
+}
+
+enum Role { USER ADMIN }
+enum RoomRole { VIEWER EDITOR OWNER }
+enum KycStatus { PENDING VERIFIED REJECTED }
+enum SubStatus { ACTIVE PAST_DUE CANCELED }
+enum DealStatus { DRAFT ACTIVE CLOSED }
+
