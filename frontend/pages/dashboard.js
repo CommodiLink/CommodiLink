@@ -1,6 +1,6 @@
-// pages/dashboard.js
+// frontend/pages/dashboard.js
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import http from "@/lib/http";
 
 const BRAND_BLUE = "#0A2A8F";
 
@@ -11,11 +11,11 @@ export default function Dashboard() {
 
   // UI state
   const [query, setQuery] = useState("");
-  const [kyc, setKyc] = useState("all"); // all | verified | pending | failed | unknown
+  const [kyc, setKyc] = useState("all");
   const [country, setCountry] = useState("all");
   const [sector, setSector] = useState("all");
-  const [sortKey, setSortKey] = useState("name"); // name | country | sector | kycStatus | updatedAt
-  const [sortDir, setSortDir] = useState("asc"); // asc | desc
+  const [sortKey, setSortKey] = useState("name");
+  const [sortDir, setSortDir] = useState("asc");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
@@ -23,10 +23,8 @@ export default function Dashboard() {
     setLoading(true);
     setErr(null);
     try {
-      const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
-      const url = `${base}/api/companies`;
-      const res = await axios.get(url);
-      setCompanies(Array.isArray(res.data) ? res.data : []);
+      const { data } = await http.get("/api/companies");
+      setCompanies(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
       setErr("Unable to load companies.");
@@ -39,7 +37,6 @@ export default function Dashboard() {
     fetchCompanies();
   }, []);
 
-  // Derived filters (unique values)
   const countryOptions = useMemo(() => {
     const set = new Set(companies.map((c) => (c.country || c.location || "").trim()).filter(Boolean));
     return ["all", ...Array.from(set).sort()];
@@ -50,7 +47,6 @@ export default function Dashboard() {
     return ["all", ...Array.from(set).sort()];
   }, [companies]);
 
-  // Normalize KYC value from various fields
   const kycOf = (c) =>
     (c.kycStatus || c.verificationStatus || c.status || "")
       .toString()
@@ -58,7 +54,6 @@ export default function Dashboard() {
       .replace(/[^a-z]/g, "")
       .replace("verifiedtrader", "verified");
 
-  // Filter + sort + paginate
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     let rows = companies.filter((c) => {
@@ -101,7 +96,6 @@ export default function Dashboard() {
   const pageSafe = Math.min(page, totalPages);
   const paged = filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
 
-  // Helpers
   const setSort = (key) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else {
@@ -110,9 +104,7 @@ export default function Dashboard() {
     }
   };
 
-  const sortIndicator = (key) =>
-    sortKey !== key ? "↕" : sortDir === "asc" ? "↑" : "↓";
-
+  const sortIndicator = (key) => (sortKey !== key ? "↕" : sortDir === "asc" ? "↑" : "↓");
   const fmtDate = (v) => {
     const t = new Date(v || 0);
     return isNaN(t) ? "—" : t.toLocaleDateString();
@@ -130,20 +122,16 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100">
-      {/* Header */}
       <div className="mx-auto max-w-7xl px-6 pt-10 pb-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-            <p className="text-slate-600">
-              Manage your verified companies, documents, and compliance at a glance.
-            </p>
+            <p className="text-slate-600">Manage your verified companies, documents, and compliance at a glance.</p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={fetchCompanies}
               className="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-blue-50"
-              title="Refresh"
             >
               Refresh
             </button>
@@ -211,7 +199,6 @@ export default function Dashboard() {
                   ))}
                 </select>
               </div>
-
               <div>
                 <label className="text-xs font-semibold text-slate-600">Sector</label>
                 <select
@@ -234,30 +221,20 @@ export default function Dashboard() {
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-slate-600">
-              Showing <span className="font-medium">{filtered.length}</span> result
-              {filtered.length === 1 ? "" : "s"}
+              Showing <span className="font-medium">{filtered.length}</span> result{filtered.length === 1 ? "" : "s"}
             </div>
-            <button
-              onClick={resetFilters}
-              className="text-xs font-medium text-[#0A2A8F] underline underline-offset-2 hover:opacity-80"
-            >
+            <button onClick={resetFilters} className="text-xs font-medium text-[#0A2A8F] underline underline-offset-2 hover:opacity-80">
               Reset filters
             </button>
           </div>
         </div>
       </section>
 
-      {/* Content */}
+      {/* Table / states */}
       <section className="mx-auto max-w-7xl px-6 pb-16">
-        {/* Error */}
-        {err && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {err}
-          </div>
-        )}
-
-        {/* Loading */}
-        {loading ? (
+        {err ? (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>
+        ) : loading ? (
           <Card>
             <TableHeader />
             <SkeletonRows rows={6} />
@@ -266,9 +243,7 @@ export default function Dashboard() {
           <Card>
             <div className="py-14 text-center">
               <p className="text-lg font-medium text-slate-900">No companies found</p>
-              <p className="mt-1 text-sm text-slate-600">
-                Try adjusting your filters or search query.
-              </p>
+              <p className="mt-1 text-sm text-slate-600">Try adjusting your filters or search query.</p>
             </div>
           </Card>
         ) : (
@@ -288,9 +263,7 @@ export default function Dashboard() {
               <tbody className="divide-y divide-slate-200">
                 {paged.map((c, i) => (
                   <tr key={c.id ?? `${c.name}-${i}`}>
-                    <td className="px-4 py-3 font-medium text-slate-900">
-                      {c.name || c.companyName || "—"}
-                    </td>
+                    <td className="px-4 py-3 font-medium text-slate-900">{c.name || c.companyName || "—"}</td>
                     <td className="px-4 py-3">{c.country || c.location || "—"}</td>
                     <td className="px-4 py-3">{c.sector || c.category || "—"}</td>
                     <td className="px-4 py-3">
@@ -310,11 +283,9 @@ export default function Dashboard() {
               </tbody>
             </table>
 
-            {/* Pagination */}
             <div className="mt-4 flex items-center justify-between">
               <div className="text-xs text-slate-600">
-                Page <span className="font-medium">{pageSafe}</span> of{" "}
-                <span className="font-medium">{totalPages}</span>
+                Page <span className="font-medium">{pageSafe}</span> of <span className="font-medium">{totalPages}</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -341,26 +312,16 @@ export default function Dashboard() {
 }
 
 /* ---------- UI bits ---------- */
-
 function Card({ children }) {
-  return (
-    <div className="rounded-2xl border border-blue-100 bg-white p-0 shadow-sm overflow-hidden">
-      {children}
-    </div>
-  );
+  return <div className="rounded-2xl border border-blue-100 bg-white p-0 shadow-sm overflow-hidden">{children}</div>;
 }
-
 function TableHeader() {
   return (
-    <div
-      className="border-b px-4 py-3"
-      style={{ background: `linear-gradient(180deg, ${BRAND_BLUE}, #061A69)` }}
-    >
+    <div className="border-b px-4 py-3" style={{ background: `linear-gradient(180deg, ${BRAND_BLUE}, #061A69)` }}>
       <p className="text-sm font-semibold text-white">Verified Companies</p>
     </div>
   );
 }
-
 function Th({ label, indicator, onClick }) {
   return (
     <th className="select-none px-4 py-3">
@@ -370,7 +331,6 @@ function Th({ label, indicator, onClick }) {
     </th>
   );
 }
-
 function KycBadge({ value }) {
   const v = (value || "unknown").toLowerCase();
   const styles = {
@@ -379,18 +339,9 @@ function KycBadge({ value }) {
     failed: "bg-red-50 text-red-700 ring-red-200",
     unknown: "bg-slate-50 text-slate-600 ring-slate-200",
   };
-  const label =
-    v === "verified" ? "Verified" :
-    v === "pending" ? "Pending" :
-    v === "failed" ? "Failed" : "Unknown";
-
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${styles[v] || styles.unknown}`}>
-      {label}
-    </span>
-  );
+  const label = v === "verified" ? "Verified" : v === "pending" ? "Pending" : v === "failed" ? "Failed" : "Unknown";
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${styles[v] || styles.unknown}`}>{label}</span>;
 }
-
 function SkeletonRows({ rows = 6 }) {
   return (
     <div className="divide-y divide-slate-200">
