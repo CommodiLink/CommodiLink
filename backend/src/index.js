@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
 import { requireAuth } from "./middleware/auth.js";
 import { attachAccess } from "./middleware/access.js";
 
-// Routers (you already have these files)
+// Routers
 import { companies } from "./routes/companies.js";
 import { dealRooms } from "./routes/dealRooms.js";
 import { kyc } from "./routes/kyc.js";
@@ -20,10 +20,10 @@ dotenv.config();
 
 const app = express();
 
-/** IMPORTANT for secure cookies behind Render/NGINX proxies */
+// ✅ Trust Render’s proxy so secure cookies work
 app.set("trust proxy", 1);
 
-// Allow your frontend (works locally too)
+// Allow your frontend
 const FRONTEND_ORIGIN =
   process.env.FRONTEND_ORIGIN ||
   process.env.CORS_ORIGIN ||
@@ -31,8 +31,8 @@ const FRONTEND_ORIGIN =
 
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN, // must exactly match your frontend URL
-    credentials: true,       // allow cookies over CORS
+    origin: FRONTEND_ORIGIN,      // must be exact, no "*"
+    credentials: true,            // allow cookies
   })
 );
 
@@ -50,66 +50,37 @@ try {
   console.warn("Prisma not available yet (continuing without DB):", e?.message || e);
 }
 
-// Home
+// Home/health
 app.get("/", (_req, res) => res.type("text/plain").send("✅ Backend is running"));
-
-// Lightweight health (NEVER hits DB; always 200)
 app.get(["/health", "/api/health", "/api/status"], (_req, res) => {
-  res.json({
-    ok: true,
-    service: "commodilink-backend",
-    time: new Date().toISOString(),
-    uptimeSec: Math.round(process.uptime()),
-  });
+  res.json({ ok: true, service: "commodilink-backend", time: new Date().toISOString(), uptimeSec: Math.round(process.uptime()) });
 });
-
-// DB health check (returns 200 with db status instead of 500)
 app.get("/healthz", async (_req, res) => {
-  const payload = { ok: true, db: "skipped" };
-
-  if (!prisma) {
-    payload.db = "unavailable";
-    return res.json(payload);
+  const payload = { ok: true, db: prisma ? "ok" : "unavailable" };
+  if (prisma) {
+    try { await prisma.$queryRaw`SELECT 1`; } catch (e) { payload.db = "error"; payload.error = e?.message || String(e); }
   }
-
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    payload.db = "ok";
-    res.json(payload);
-  } catch (err) {
-    payload.db = "error";
-    payload.error = err?.message || String(err);
-    res.json(payload);
-  }
+  res.json(payload);
 });
 
-/* ================== SIMPLE AUTH (cookie-based) ================== */
-/** POST /api/login
- * Accepts { email, password } and sets an HttpOnly cookie "session".
- * Allows a demo user when DB is missing so you can test the UI.
- */
+/* ================== AUTH ================== */
+// POST /api/login → sets HttpOnly cookie usable cross-site
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body ?? {};
-  if (!email || !password)
-    return res.status(400).json({ error: "email and password required" });
+  if (!email || !password) return res.status(400).json({ error: "email and password required" });
 
   try {
     let user = null;
 
     if (prisma) {
-      try {
-        user = await prisma.user.findFirst({ where: { email } });
-        // TODO: verify password hash if you store hashes
-      } catch {}
+      try { user = await prisma.user.findFirst({ where: { email } }); } catch {}
+      // TODO: verify password hash
     }
 
-    if (!user) {
-      // demo user for now
-      if (email === "demo@commodilink.com" && password === "Password1") {
-        user = { id: 1, email: "demo@commodilink.com", companyId: 1 };
-      }
+    // demo user when DB empty
+    if (!user && email === "demo@commodilink.com" && password === "Password1") {
+      user = { id: 1, email, companyId: 1 };
     }
-
     if (!user) return res.status(401).json({ error: "invalid credentials" });
 
     const token = jwt.sign(
@@ -118,11 +89,11 @@ app.post("/api/login", async (req, res) => {
       { expiresIn: "2h" }
     );
 
-    // *** CRITICAL for cross-site cookie from backend -> frontend on Render ***
+    // 🔐 Critical cookie flags for cross-site XHR
     res.cookie("session", token, {
       httpOnly: true,
-      sameSite: "none", // cross-site requests need SameSite=None
-      secure: true,     // SameSite=None requires Secure
+      sameSite: "none",   // <-- cross-site requires "none"
+      secure: true,       // <-- must be true with SameSite=None
       maxAge: 2 * 60 * 60 * 1000,
     });
 
@@ -133,13 +104,11 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-/** POST /api/logout - clears the cookie using the same attributes */
 app.post("/api/logout", (_req, res) => {
   res.clearCookie("session", { httpOnly: true, sameSite: "none", secure: true });
   res.json({ ok: true });
 });
 
-/** GET /api/me — verifies cookie and returns user + access flags */
 app.get("/api/me", requireAuth(), attachAccess, (req, res) => {
   const { user, company, kycVerified, paid } = req.access;
   res.json({
@@ -148,9 +117,9 @@ app.get("/api/me", requireAuth(), attachAccess, (req, res) => {
     access: { kycVerified, paid },
   });
 });
-/* ================================================================ */
+/* ========================================= */
 
-// (Optional) Demo user endpoints you already had
+// Demo user endpoints (optional)
 app.get("/users", async (_req, res) => {
   if (!prisma) return res.status(503).json({ error: "database not available" });
   try {
@@ -166,31 +135,17 @@ app.post("/users", async (req, res) => {
   if (!prisma) return res.status(503).json({ error: "database not available" });
   try {
     const { email, password } = req.body ?? {};
-    if (!email || !password)
-      return res.status(400).json({ error: "email and password required" });
+    if (!email || !password) return res.status(400).json({ error: "email and password required" });
     const user = await prisma.user.create({ data: { email, password } });
     res.status(201).json(user);
   } catch (err) {
-    if (err?.code === "P2002")
-      return res.status(409).json({ error: "email already exists" });
+    if (err?.code === "P2002") return res.status(409).json({ error: "email already exists" });
     console.error("POST /users error:", err);
     res.status(500).json({ error: String(err?.message || err) });
   }
 });
 
-app.get("/dev/seed", async (_req, res) => {
-  if (!prisma) return res.status(503).json({ error: "database not available" });
-  try {
-    const email = `demo+${Date.now()}@example.com`;
-    const user = await prisma.user.create({ data: { email, password: "demo" } });
-    res.json(user);
-  } catch (err) {
-    console.error("GET /dev/seed error:", err);
-    res.status(500).json({ error: String(err?.message || err) });
-  }
-});
-
-// ================== MOUNT FEATURE ROUTERS ==================
+// Routers (protected where needed)
 app.use(companies);
 app.use(dealRooms);
 app.use(kyc);
@@ -198,8 +153,7 @@ app.use(billing);
 app.use(docs);
 app.use(analytics);
 
-// Bind to Render's dynamic port
+// Port
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 API listening on :${PORT}`);
-});
+app.listen(PORT, "0.0.0.0", () => console.log(`🚀 API listening on :${PORT}`));
+
