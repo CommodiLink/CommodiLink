@@ -1,11 +1,9 @@
 // frontend/lib/http.js
 import axios from "axios";
 
-const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
-
 const http = axios.create({
-  baseURL: base || "",
-  withCredentials: true,                // <-- required so cookies are sent
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, ""),
+  withCredentials: true, // <-- send the cookie!
   headers: { "Content-Type": "application/json" },
 });
 
